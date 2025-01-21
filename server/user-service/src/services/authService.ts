@@ -1,40 +1,61 @@
+import { IAuthService } from '../interfaces/IAuthService';
+import { IUserRepository } from '../interfaces/IUserRepository';
+import { IUserCreateRequest } from '../types/IUserCreateRequest';
+import { IAuthResponse } from '../types/IAuthResponse';
+import { IUser } from '../types/IUser';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import UserRepository from '../repositories/userRepository';
-import { IAuthService } from '../interfaces/IAuthService';
 
 class AuthService implements IAuthService {
-  async signup( name: string, email: string, password: string ): Promise<string> {
-    const existingUser = await UserRepository.findByEmail( email );
-    if ( existingUser ) {
-      throw new Error( 'Email already in use' );
-    }
+  private userRepository: IUserRepository;
+  private jwtSecret: string;
 
-    const hashedPassword = await bcrypt.hash( password, Number( process.env.BCRYPT_SALT_ROUNDS ) );
-    const user = await UserRepository.createUser( name, email, hashedPassword, 'interviewee' );
-
-    return this.generateToken( user.id, user.role );
+  constructor(userRepository: IUserRepository, jwtSecret: string) {
+    this.userRepository = userRepository;
+    this.jwtSecret = jwtSecret;
   }
 
-  async login( email: string, password: string ): Promise<string> {
-    const user = await UserRepository.findByEmail( email );
-    if ( !user ) {
-      throw new Error( 'Invalid email or password' );
+  async register(userData: IUserCreateRequest): Promise<IAuthResponse> {
+    
+    const existingUser = await this.userRepository.findByEmail(userData.email);
+    if (existingUser) {
+      throw new Error('Email already in use');
     }
 
-    const isPasswordValid = await bcrypt.compare( password, user.password );
-    if ( !isPasswordValid ) {
-      throw new Error( 'Invalid email or password' );
-    }
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    userData.password = hashedPassword;
 
-    return this.generateToken( user.id, user.role );
+    const user = await this.userRepository.create(userData);
+
+    const token = this.generateAuthToken(user.id, user.role);
+    return { token, user };
   }
 
-  private generateToken( userId: number, role: string ): string {
-    return jwt.sign( { id: userId, role }, process.env.JWT_SECRET as string, {
-      expiresIn: process.env.JWT_EXPIRATION
-    } );
+  async login(email: string, password: string): Promise<IAuthResponse> {
+    console.log('Reaching to login service layer');
+
+    const user: IUser | null = await this.userRepository.findByEmail(email);
+    console.log(user);
+    
+    if (!user || !user.password) { 
+      throw new Error('Invalid credentials');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new Error('Invalid credentials');
+    }
+
+    // Generate auth token
+    const token = this.generateAuthToken(user.id, user.role);
+    return { token, user };
+  }
+
+  private generateAuthToken(userId: string, role: string): string {
+    return jwt.sign({ userId, role }, this.jwtSecret, {
+      expiresIn: '1h'
+    });
   }
 }
 
-export default new AuthService();
+export default AuthService;

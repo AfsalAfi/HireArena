@@ -1,22 +1,65 @@
+import { IGenericResponse } from './../../../types/IGenericResponse';
+import { IError } from './../../../types/IError';
 import { Request, Response } from 'express';
-import AuthService from '../services/authService';
+import { IAuthService } from '../interfaces/IAuthService';
+import { IAuthResponse } from '../types/IAuthResponse';
+import { IUserCreateRequest } from '../types/IUserCreateRequest';
 
-export const signup = async ( req: Request, res: Response ): Promise<void> => {
-  try {
-    const { name, email, password } = req.body;
-    const token = await AuthService.signup( name, email, password );
-    res.status( 201 ).json( { message: 'User registered successfully', token } );
-  } catch ( error ) {
-    res.status( 400 ).json( { error: ( error as Error ).message } );
-  }
-};
+class AuthController {
+  private authService: IAuthService;
 
-export const login = async ( req: Request, res: Response ): Promise<void> => {
-  try {
-    const { email, password } = req.body;
-    const token = await AuthService.login( email, password );
-    res.status( 200 ).json( { message: 'Login successful', token } );
-  } catch ( error ) {
-    res.status( 400 ).json( { error: ( error as Error ).message } );
+  constructor(authService: IAuthService) {
+    this.authService = authService;
   }
-};
+
+  register= async (
+    req: Request,
+    res: Response<IGenericResponse<IAuthResponse | IError>>
+  ) => {
+    try {
+      const userData: IUserCreateRequest = req.body;
+      
+      const authResponse = await this.authService.register(userData);
+      res.status(201).json({
+        status: 'success',
+        message: 'User registered successfully',
+        data: authResponse
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: 'An error occurred during registration',
+        error: (error as Error).message
+      });
+    }
+  };
+
+  login = async (
+    req: Request,
+    res: Response<IGenericResponse<IAuthResponse | IError>>
+  ) => {
+    try {
+      const { email, password } = req.body;
+      console.log(email, password);
+
+      console.log(this.authService);
+
+      const authResponse = await this.authService.login(email, password);
+      res.status(200).json({
+        status: 'success',
+        message: 'User logged in successfully',
+        data: authResponse
+      });
+    } catch (error) {
+      console.log(error);
+
+      res.status(500).json({
+        status: 'error',
+        message: 'An error occurred during login',
+        error: (error as Error).message
+      });
+    }
+  };
+}
+
+export default AuthController;
