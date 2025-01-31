@@ -4,6 +4,9 @@
     "outDir": "./dist/gateway-service" // Service-specific output directory
   },
   "include": [
-    "src/**/*.ts" // Only include .ts files in the src directory
-, "src/app.ts", "../server.ts"  ]
+    "src/**/*.ts",
+    "src/app.ts",
+    "../server.ts",
+    "src/express.d.ts"  
+  ]
 }

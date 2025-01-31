@@ -1,7 +1,0 @@
-POST http://localhost:4000/user-service/api/auth/login
-content-type: application/json
-
-{
-    "email": "a@gmail.com",
-    "password": "123123"
-}
